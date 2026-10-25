@@ -1,0 +1,55 @@
+name: Autonomous Insta Scout
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target Instagram URL (Reels / Post / Profile)'
+        required: true
+        type: string
+      duration_minutes:
+        description: 'Duration (minutes) / Limit'
+        required: false
+        default: '15'
+        type: string
+      chat_id:
+        description: 'Telegram Chat ID to report results'
+        required: false
+        type: string
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install System Dependencies (ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Insta Scout
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
+        run: |
+          python scout.py \
+            --url "${{ github.event.inputs.target_url }}" \
+            --duration "${{ github.event.inputs.duration_minutes }}" \
+            --chat-id "${{ github.event.inputs.chat_id }}"
