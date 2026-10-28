@@ -64,14 +64,15 @@ class handler(BaseHTTPRequestHandler):
 
             if text.startswith("/start"):
                 welcome_msg = (
-                    "👋 <b>Halo! Saya Insta Scout Bot.</b>\n\n"
-                    "Kirimkan link postingan, Reels, atau akun Instagram yang ingin Anda riset:\n"
-                    "• <code>https://www.instagram.com/reels/DdJbTkTMfxB/</code>\n"
-                    "• <code>https://www.instagram.com/nama_akun/ durasi: 15 menit</code>\n\n"
-                    "Saya akan membuka, menonton video, membaca visual, caption, dan musiknya lalu mengirimkan hasilnya ke sini."
+                    "👋 <b>Halo! Saya Scout Bot (Multi-Platform).</b>\n\n"
+                    "Kirimkan link yang ingin Anda riset/tonton:\n"
+                    "• <b>Instagram:</b> <code>https://www.instagram.com/reels/DdJbTkTMfxB/</code>\n"
+                    "• <b>YouTube:</b> <code>https://youtube.com/shorts/XXXXX</code> atau video panjang\n"
+                    "• <b>Akun/Channel:</b> <code>https://youtube.com/@channel durasi: 15m</code>\n\n"
+                    "Saya akan otomatis menonton, membaca visual, caption, dan musiknya lalu mengirimkan laporannya ke sini."
                 )
                 send_telegram(chat_id, welcome_msg)
-            elif "instagram.com" in text:
+            elif any(domain in text for domain in ["instagram.com", "youtube.com", "youtu.be", "tiktok.com"]):
                 # Extract URL and optional duration
                 parts = text.split()
                 target_url = parts[0]
@@ -82,15 +83,15 @@ class handler(BaseHTTPRequestHandler):
 
                 send_telegram(
                     chat_id, 
-                    f"🚀 <b>Instruksi Diterima!</b>\nTarget: {target_url}\nDurasi: {duration} menit.\n\n"
-                    f"<i>Runner GitHub Actions sedang dibangun di cloud. Hasil analisis akan otomatis dikirimkan ke chat ini begitu selesai...</i>"
+                    f"🚀 <b>Instruksi Diterima!</b>\nTarget: {target_url}\nDurasi/Batas: {duration} menit.\n\n"
+                    f"<i>Runner GitHub Actions sedang dijalankan di cloud. Hasil analisis akan otomatis dikirimkan ke chat ini...</i>"
                 )
 
                 ok, reason = trigger_github_action(target_url, duration, chat_id)
                 if not ok:
                     send_telegram(chat_id, f"⚠️ <b>Gagal memicu runner:</b> {reason}")
             else:
-                send_telegram(chat_id, "Kirimkan link Instagram yang valid (Reels, Post, atau Profil).")
+                send_telegram(chat_id, "Kirimkan link yang valid dari Instagram atau YouTube (Video, Shorts, atau Channel).")
 
         except Exception as e:
             print("Webhook error:", e)

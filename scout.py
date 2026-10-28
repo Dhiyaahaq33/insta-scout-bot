@@ -163,8 +163,12 @@ def main():
         send_telegram_message(chat_id, f"🔍 <b>Insta Scout Aktif!</b>\nTarget: {target_url}\nDurasi/Batas: {args.duration} menit. Sedang memproses konten...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Cek apakah single post/reel atau akun
-        is_profile = "/reels/" not in target_url and "/reel/" not in target_url and "/p/" not in target_url
+        # Cek apakah single post/reel/video atau akun/channel
+        is_single = any(k in target_url for k in [
+            "/reels/", "/reel/", "/p/", 
+            "watch?v=", "youtu.be/", "/shorts/"
+        ])
+        is_profile = not is_single
 
         if not is_profile:
             # Mode Single Reel
