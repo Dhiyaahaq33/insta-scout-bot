@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_url:
-        description: 'Target Instagram URL (Reels / Post / Profile)'
+        description: 'Target Instagram / YouTube URL (Reels / Post / Profile)'
         required: true
         type: string
       duration_minutes:
@@ -31,6 +31,11 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Set up Deno (JS runtime for yt-dlp EJS)
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
 
       - name: Install System Dependencies (ffmpeg)
         run: |
