@@ -91,34 +91,52 @@ def analyze_media_with_gemini(media_path: str, caption: str, uploader: str, is_v
 
         if is_video:
             prompt = f"""
-            Kamu adalah AI Social Media Intelligence Scout.
+            Kamu adalah AI Executive Content Intelligence Scout.
             Tonton dan dengarkan video ini dengan teliti.
-            
+
             Metadata Konten:
             - Akun Pengunggah: {uploader}
             - Caption Asli: {caption}
-            
-            Berikan laporan analisis mendalam dengan format berikut:
-            1. 🎵 **Audio / Musik / Lagu**: Identifikasi lagu, tren suara, atau jenis voiceover yang digunakan.
-            2. 👀 **Visual Breakdown**: Ceritakan apa yang terlihat di video frame-demi-frame (objek, orang, suasana, teks on-screen).
-            3. 🎙️ **Transkrip Ucapan**: Rangkum perkataan orang di dalam video (jika ada pembicaraan).
-            4. 💡 **Inti Pesan & Hook**: Analisis hook 3 detik pertama, isi utama, dan ajakan bertindak (CTA).
-            5. 🎯 **Kesimpulan & Value**: Apa insight penting atau nilai utama yang ingin disampaikan pembuat konten?
+
+            Buat output dengan aturan ketat berikut:
+            1. BAGIAN ATAS (Wajib Sangat Ringkas): Ceritakan intinya dalam 2-3 kalimat saja. Video ini tentang apa, siapa pelakunya, dan poin utamanya apa. Bahasa santai, to-the-point, tanpa basa-basi.
+            2. BAGIAN BAWAH (Rincian): Berikan rincian singkat poin-poin (Visual kunci, Kutipan pembicaraan, Audio/Lagu, Hook & CTA).
+
+            Format output harus persis seperti ini:
+            [INTI]
+            (Tulis 2-3 kalimat ringkasan inti di sini)
+            [/INTI]
+
+            [DETAIL]
+            👀 **Visual & Data:** (Poin-poin visual atau angka penting)
+            🎙️ **Ucapan Kunci:** (Kalimat/kutipan penting pembicara)
+            🎵 **Musik / Suara:** (Jenis lagu/audio yang dipakai)
+            🎯 **Hook & CTA:** (Kalimat pembuka & ajakan bertindak)
+            [/DETAIL]
             """
         else:
             prompt = f"""
-            Kamu adalah AI Social Media Intelligence Scout.
-            Lihat dan analisis gambar/foto postingan ini dengan teliti.
-            
+            Kamu adalah AI Executive Content Intelligence Scout.
+            Lihat foto postingan ini dengan teliti.
+
             Metadata Konten:
             - Akun Pengunggah: {uploader}
             - Caption Asli: {caption}
-            
-            Berikan laporan analisis mendalam dengan format berikut:
-            1. 👀 **Visual & Objek**: Siapa/apa yang tampak di foto, desain, warna, dan suasana.
-            2. 📝 **Teks pada Gambar (OCR)**: Catat semua tulisan yang terbaca di dalam foto/poster/infografis.
-            3. 💡 **Inti Pesan & Konteks**: Apa pesan atau pengumuman yang ingin disampaikan melalui foto ini?
-            4. 🎯 **Kesimpulan**: Nilai penting atau kesimpulan utama dari postingan ini.
+
+            Buat output dengan aturan ketat berikut:
+            1. BAGIAN ATAS (Wajib Sangat Ringkas): Ceritakan intinya dalam 2-3 kalimat saja. Postingan ini tentang apa dan apa pesan utamanya.
+            2. BAGIAN BAWAH (Rincian): Catat teks yang ada di gambar (OCR) dan detail visual/CTA.
+
+            Format output harus persis seperti ini:
+            [INTI]
+            (Tulis 2-3 kalimat ringkasan inti di sini)
+            [/INTI]
+
+            [DETAIL]
+            📝 **Teks pada Gambar (OCR):** (Tulisan penting yang terbaca)
+            👀 **Desain & Visual:** (Elemen visual dan layout)
+            🎯 **Pesan & CTA:** (Tujuan postingan dan ajakan)
+            [/DETAIL]
             """
 
         # Cek dan coba model-model kandidat secara bergantian jika ada yang sibuk (503 / 429 / 404)
@@ -314,20 +332,30 @@ def main():
 
             send_progress(chat_id, "📝 <b>[3/3]</b> Menyusun laporan analisis lengkap...")
             tipe_konten = "VIDEO / REELS" if is_video else "FOTO / POSTINGAN"
-            report = f"""
-🎬 <b>HASIL ANALISIS {tipe_konten}</b>
-🔗 <b>URL:</b> {target_url}
-👤 <b>Uploader / Akun:</b> @{data['uploader']}
-⏱️ <b>Durasi:</b> {data.get('duration', 0)} detik
+            dur_text = f" • ⏱️ {data.get('duration')}s" if data.get('duration') else ""
+            clean_caption = data.get('caption', '').strip().replace("\n", " ")
+            if len(clean_caption) > 160:
+                clean_caption = clean_caption[:160] + "..."
 
-📝 <b>Caption:</b>
-{data['caption'][:350] + ('...' if len(data['caption']) > 350 else '')}
+            # Parsing [INTI] dan [DETAIL] agar hanya pesan ringkas yang muncul di awal
+            inti_text = analysis
+            detail_text = ""
+            if "[INTI]" in analysis and "[/INTI]" in analysis:
+                inti_text = analysis.split("[INTI]")[1].split("[/INTI]")[0].strip()
+            if "[DETAIL]" in analysis and "[/DETAIL]" in analysis:
+                detail_text = analysis.split("[DETAIL]")[1].split("[/DETAIL]")[0].strip()
 
-══════════════════════════
-{analysis}
-══════════════════════════
-✅ <i>Scout selesai secara otomatis.</i>
-"""
+            collapsible_detail = ""
+            if detail_text:
+                collapsible_detail = f"\n<blockquote expandable>🔍 <b>RINCIAN LEBIH LANJUT (Tap untuk Buka/Tutup)</b>\n\n{detail_text}</blockquote>"
+
+            report = f"""🎬 <b>ISI KONTEN: {tipe_konten}</b>
+👤 <b>Akun:</b> @{data['uploader']}{dur_text}
+🔗 <a href="{target_url}">Tonton Asli</a>
+
+💡 <b>Intinya:</b>
+{inti_text}
+{collapsible_detail}"""
             if chat_id:
                 send_telegram_message(chat_id, report)
             else:
@@ -380,12 +408,26 @@ def main():
                 if m_path and os.path.exists(m_path):
                     item_analysis = analyze_media_with_gemini(m_path, item_data["caption"], item_data["uploader"], is_video=is_vid)
 
-                item_report = f"""
-📹 <b>Konten #{idx}:</b> {r_url}
-👤 <b>Uploader:</b> @{item_data['uploader']}
-{item_analysis}
-──────────────────────────
-"""
+                # Parsing [INTI] dan [DETAIL]
+                item_inti = item_analysis
+                item_detail = ""
+                if "[INTI]" in item_analysis and "[/INTI]" in item_analysis:
+                    item_inti = item_analysis.split("[INTI]")[1].split("[/INTI]")[0].strip()
+                if "[DETAIL]" in item_analysis and "[/DETAIL]" in item_analysis:
+                    item_detail = item_analysis.split("[DETAIL]")[1].split("[/DETAIL]")[0].strip()
+
+                collapsible = ""
+                if item_detail:
+                    collapsible = f"\n<blockquote expandable>🔍 <b>RINCIAN LEBIH LANJUT (Tap untuk Buka/Tutup)</b>\n\n{item_detail}</blockquote>"
+
+                tipe_lbl = "VIDEO" if is_vid else "FOTO"
+                item_report = f"""📹 <b>Konten #{idx} ({tipe_lbl}):</b>
+👤 <b>Akun:</b> @{item_data['uploader']}
+🔗 <a href="{r_url}">Buka Konten</a>
+
+💡 <b>Intinya:</b>
+{item_inti}
+{collapsible}"""
                 reports.append(item_report)
                 if chat_id:
                     send_telegram_message(chat_id, item_report)
