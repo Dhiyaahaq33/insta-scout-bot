@@ -121,8 +121,14 @@ def analyze_media_with_gemini(media_path: str, caption: str, uploader: str, is_v
             4. 🎯 **Kesimpulan**: Nilai penting atau kesimpulan utama dari postingan ini.
             """
 
-        # Coba model-model terkini (gemini-3.8-flash, gemini-2.5-flash, gemini-1.5-flash)
-        candidate_models = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash-exp"]
+        # Cek dan coba model-model kandidat secara bergantian jika ada yang sibuk (503 / 429 / 404)
+        candidate_models = [
+            "gemini-2.5-flash", 
+            "gemini-1.5-flash", 
+            "gemini-3.8-flash", 
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-pro"
+        ]
         last_error = None
         response_text = None
 
@@ -137,10 +143,9 @@ def analyze_media_with_gemini(media_path: str, caption: str, uploader: str, is_v
                 break
             except Exception as me:
                 last_error = me
-                if "NOT_FOUND" in str(me) or "404" in str(me):
-                    continue
-                else:
-                    break
+                print(f"[!] Model {model_name} sedang bermasalah ({me}), mencoba model cadangan berikutnya...")
+                time.sleep(1)
+                continue
 
         # Bersihkan file dari cloud storage Gemini
         try:
