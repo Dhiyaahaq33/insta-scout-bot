@@ -15,17 +15,18 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 DEFAULT_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 INSTAGRAM_COOKIES = os.getenv("INSTAGRAM_COOKIES", "")
 
-def send_telegram_message(chat_id: str, text: str):
-    """Kirim pesan ke Telegram bot, otomatis memotong teks jika > 4000 karakter."""
+def send_telegram_message(chat_id: str, text: str) -> int:
+    """Kirim pesan ke Telegram bot. Mengembalikan message_id jika berhasil."""
     token = TELEGRAM_BOT_TOKEN
     if not token:
-        print("[!] TELEGRAM_BOT_TOKEN belum disetel. Pesan tidak dikirim ke Telegram.")
+        print("[!] TELEGRAM_BOT_TOKEN belum disetel.")
         print(text)
-        return
+        return 0
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     max_len = 4000
     chunks = [text[i:i + max_len] for i in range(0, len(text), max_len)]
+    last_msg_id = 0
 
     for chunk in chunks:
         payload = {
@@ -37,11 +38,18 @@ def send_telegram_message(chat_id: str, text: str):
         try:
             res = requests.post(url, json=payload, timeout=15)
             if not res.ok:
-                # Fallback to plain text if HTML parsing fails
                 payload["parse_mode"] = ""
-                requests.post(url, json=payload, timeout=15)
+                res = requests.post(url, json=payload, timeout=15)
+            if res.ok:
+                last_msg_id = res.json().get("result", {}).get("message_id", 0)
         except Exception as e:
             print(f"[!] Gagal mengirim pesan ke Telegram: {e}")
+    return last_msg_id
+
+def send_progress(chat_id: str, text: str):
+    """Kirim pembaruan status progress ke Telegram."""
+    if chat_id:
+        send_telegram_message(chat_id, f"<i>{text}</i>")
 
 def get_ytdlp_cookie_arg(temp_dir: str):
     """Menyiapkan file cookie jika tersedia di environment."""
@@ -171,17 +179,20 @@ def main():
         is_profile = not is_single
 
         if not is_profile:
-            # Mode Single Reel
+            # Mode Single Reel / Video
+            send_progress(chat_id, "⏳ <b>[1/3]</b> Mengunduh media & mengekstrak trek audio/video...")
             data = process_single_reel(target_url, temp_dir)
             if "error" in data:
-                msg = f"❌ <b>Gagal memproses reel:</b> {data['error']}"
+                msg = f"❌ <b>Gagal memproses link:</b> {data['error']}"
                 if chat_id: send_telegram_message(chat_id, msg)
                 return
 
             analysis = ""
             if data.get("video_path") and os.path.exists(data["video_path"]):
+                send_progress(chat_id, "🧠 <b>[2/3]</b> Gemini 2.0 Flash sedang 'menonton' visual & mendengarkan suara...")
                 analysis = analyze_video_with_gemini(data["video_path"], data["caption"], data["uploader"])
 
+            send_progress(chat_id, "📝 <b>[3/3]</b> Menyusun laporan analisis lengkap...")
             report = f"""
 🎬 <b>HASIL ANALISIS KONTEN</b>
 🔗 <b>URL:</b> {target_url}
@@ -201,7 +212,8 @@ def main():
             else:
                 print(report)
         else:
-            # Mode Akun / Profil: Mengambil daftar video teratas
+            # Mode Akun / Profil / Channel: Mengambil daftar video teratas
+            send_progress(chat_id, f"🔍 <b>[1/3]</b> Mengakses profil/channel: {target_url}...")
             print(f"[*] Mengambil reels terbaru dari akun: {target_url}...")
             cookie_args = get_ytdlp_cookie_arg(temp_dir)
             list_cmd = [
@@ -226,12 +238,14 @@ def main():
                     continue
 
             if not reels_urls:
-                # Fallback: jika yt-dlp flat playlist kosong, coba deteksi pola url profil
                 reels_urls = [target_url]
 
+            target_items = reels_urls[:args.max_posts]
+            send_progress(chat_id, f"🎯 <b>[2/3]</b> Terdeteksi {len(target_items)} video terbaru. Mulai scouting satu per satu...")
+
             reports = []
-            for idx, r_url in enumerate(reels_urls[:args.max_posts], 1):
-                print(f"[*] Memproses reel {idx}/{len(reels_urls)}: {r_url}")
+            for idx, r_url in enumerate(target_items, 1):
+                send_progress(chat_id, f"⏳ Sedang memproses konten <b>[{idx}/{len(target_items)}]</b>...")
                 item_temp = os.path.join(temp_dir, f"reel_{idx}")
                 os.makedirs(item_temp, exist_ok=True)
                 item_data = process_single_reel(r_url, item_temp)
@@ -252,7 +266,7 @@ def main():
                 if chat_id:
                     send_telegram_message(chat_id, item_report)
 
-            summary_msg = f"🏁 <b>Scouting Selesai!</b> Telah menganalisis {len(reports)} konten dari {target_url}."
+            summary_msg = f"🏁 <b>Scouting Selesai!</b> Berhasil menganalisis {len(reports)} konten dari {target_url}."
             if chat_id:
                 send_telegram_message(chat_id, summary_msg)
 
