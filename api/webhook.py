@@ -66,13 +66,13 @@ class handler(BaseHTTPRequestHandler):
                 welcome_msg = (
                     "👋 <b>Halo! Saya Scout Bot (Multi-Platform).</b>\n\n"
                     "Kirimkan link yang ingin Anda riset/tonton:\n"
-                    "• <b>Instagram:</b> <code>https://www.instagram.com/reels/DdJbTkTMfxB/</code>\n"
-                    "• <b>YouTube:</b> <code>https://youtube.com/shorts/XXXXX</code> atau video panjang\n"
-                    "• <b>Akun/Channel:</b> <code>https://youtube.com/@channel durasi: 15m</code>\n\n"
-                    "Saya akan otomatis menonton, membaca visual, caption, dan musiknya lalu mengirimkan laporannya ke sini."
+                    "• <b>Instagram:</b> Reels, Foto, Carousel, Profil\n"
+                    "• <b>YouTube:</b> Shorts, Video Panjang, Channel\n"
+                    "• <b>TikTok:</b> Video TikTok, Profil Akun\n\n"
+                    "Saya akan otomatis menonton, menganalisis dengan gaya storytelling, membedah visual, musik, dan intisarinya."
                 )
                 send_telegram(chat_id, welcome_msg)
-            elif any(domain in text for domain in ["instagram.com", "youtube.com", "youtu.be", "tiktok.com"]):
+            elif any(domain in text for domain in ["instagram.com", "youtube.com", "youtu.be", "tiktok.com", "vt.tiktok.com"]):
                 # Extract URL and optional duration
                 parts = text.split()
                 target_url = parts[0]

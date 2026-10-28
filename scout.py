@@ -67,8 +67,8 @@ def get_youtube_extra_args(url: str):
     """Parameter khusus YouTube untuk melewati bot detection di cloud runner."""
     if "youtube.com" in url or "youtu.be" in url:
         return [
-            "--extractor-args", "youtube:player_client=android,mweb,web",
-            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            "--extractor-args", "youtube:player_client=mweb,android",
+            "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
         ]
     return []
 
@@ -98,55 +98,87 @@ def analyze_media_with_gemini(media_path: str, caption: str, uploader: str, is_v
             - Akun Pengunggah: {uploader}
             - Caption Asli: {caption}
 
-            Buat output dengan aturan ketat berikut:
-            1. BAGIAN ATAS (Wajib Sangat Ringkas): Ceritakan intinya dalam 2-3 kalimat saja. Video ini tentang apa, siapa pelakunya, dan poin utamanya apa. Bahasa santai, to-the-point, tanpa basa-basi.
-            2. BAGIAN BAWAH (Rincian): Berikan rincian singkat poin-poin (Visual kunci, Kutipan pembicaraan, Audio/Lagu, Hook & CTA).
+            Buat output dengan aturan berikut:
+            1. BAGIAN [INTI]:
+               Ceritakan alur cerita dan isi video ini dengan gaya **STORYTELLING yang mengalir, hidup, dan mendalam (deeply informative & non-generik)**.
+               - Jelaskan latar belakang dan konteks apa yang sedang terjadi.
+               - Ceritakan bagaimana narasi atau kejadian di video bergulir (apa masalahnya, emosi/suasananya, dan aksi tokohnya).
+               - Jelaskan poin-poin penting, data, atau pesan moral/bisnis yang disampaikan tanpa terkesan kaku atau seperti robot.
+            
+            2. BAGIAN [DETAIL]:
+               Berikan rincian singkat poin-poin pelengkap:
+               👀 **Visual & Data:** (Adegan penting, data/angka, teks di layar)
+               🎙️ **Ucapan Kunci:** (Kutipan kalimat paling berbobot dari pembicara)
+               🎵 **Musik / Suara:** (Lagu, instrumen, atau jenis nada suara)
+               🎯 **Hook & CTA:** (Kalimat pembuka & ajakan bertindak)
 
             Format output harus persis seperti ini:
             [INTI]
-            (Tulis 2-3 kalimat ringkasan inti di sini)
+            (Tulis narasi storytelling yang informatif dan seru di sini)
             [/INTI]
 
             [DETAIL]
-            👀 **Visual & Data:** (Poin-poin visual atau angka penting)
-            🎙️ **Ucapan Kunci:** (Kalimat/kutipan penting pembicara)
-            🎵 **Musik / Suara:** (Jenis lagu/audio yang dipakai)
-            🎯 **Hook & CTA:** (Kalimat pembuka & ajakan bertindak)
+            👀 **Visual & Data:** ...
+            🎙️ **Ucapan Kunci:** ...
+            🎵 **Musik / Suara:** ...
+            🎯 **Hook & CTA:** ...
             [/DETAIL]
             """
         else:
             prompt = f"""
             Kamu adalah AI Executive Content Intelligence Scout.
-            Lihat foto postingan ini dengan teliti.
+            Lihat dan analisis gambar/foto postingan ini dengan teliti.
 
             Metadata Konten:
             - Akun Pengunggah: {uploader}
             - Caption Asli: {caption}
 
-            Buat output dengan aturan ketat berikut:
-            1. BAGIAN ATAS (Wajib Sangat Ringkas): Ceritakan intinya dalam 2-3 kalimat saja. Postingan ini tentang apa dan apa pesan utamanya.
-            2. BAGIAN BAWAH (Rincian): Catat teks yang ada di gambar (OCR) dan detail visual/CTA.
+            Buat output dengan aturan berikut:
+            1. BAGIAN [INTI]:
+               Ceritakan konteks dan pesan postingan ini dengan gaya **STORYTELLING yang informatif dan mengalir**.
+               - Jelaskan apa momen/acara yang diumumkan atau dipamerkan.
+               - Ceritakan makna atau signifikansi di balik foto/poster ini bagi audiens.
+            
+            2. BAGIAN [DETAIL]:
+               📝 **Teks pada Gambar (OCR):** (Semua tulisan dan logo yang teridentifikasi)
+               👀 **Desain & Visual:** (Elemen visual, layout, suasana)
+               🎯 **Pesan & CTA:** (Ajakan dan tujuan)
 
             Format output harus persis seperti ini:
             [INTI]
-            (Tulis 2-3 kalimat ringkasan inti di sini)
+            (Tulis narasi storytelling yang informatif di sini)
             [/INTI]
 
             [DETAIL]
-            📝 **Teks pada Gambar (OCR):** (Tulisan penting yang terbaca)
-            👀 **Desain & Visual:** (Elemen visual dan layout)
-            🎯 **Pesan & CTA:** (Tujuan postingan dan ajakan)
+            📝 **Teks pada Gambar (OCR):** ...
+            👀 **Desain & Visual:** ...
+            🎯 **Pesan & CTA:** ...
             [/DETAIL]
             """
 
-        # Cek dan coba model-model kandidat secara bergantian jika ada yang sibuk (503 / 429 / 404)
-        candidate_models = [
-            "gemini-2.5-flash", 
-            "gemini-1.5-flash", 
-            "gemini-3.8-flash", 
-            "gemini-2.0-flash-exp",
-            "gemini-1.5-pro"
-        ]
+        # Ambil daftar model yang didukung secara dinamis dari API akun pengguna
+        candidate_models = []
+        try:
+            for m in client.models.list():
+                m_name = m.name.replace("models/", "")
+                methods = getattr(m, "supported_generation_methods", []) or getattr(m, "supported_actions", [])
+                if "generateContent" in methods or not methods:
+                    if "flash" in m_name.lower():
+                        candidate_models.append(m_name)
+        except Exception as e:
+            print(f"[*] Tidak dapat me-list model otomatis: {e}")
+
+        # Fallback list jika list dinamis kosong
+        if not candidate_models:
+            candidate_models = [
+                "gemini-2.5-flash",
+                "gemini-1.5-flash",
+                "gemini-1.5-flash-latest",
+                "gemini-3.8-flash",
+                "gemini-2.0-flash-exp",
+                "gemini-1.5-pro-latest"
+            ]
+
         last_error = None
         response_text = None
 
@@ -161,7 +193,7 @@ def analyze_media_with_gemini(media_path: str, caption: str, uploader: str, is_v
                 break
             except Exception as me:
                 last_error = me
-                print(f"[!] Model {model_name} sedang bermasalah ({me}), mencoba model cadangan berikutnya...")
+                print(f"[!] Model {model_name} gagal/sibuk ({me}), mencoba model berikutnya...")
                 time.sleep(1)
                 continue
 
@@ -308,9 +340,10 @@ def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         is_single = any(k in target_url for k in [
             "/reels/", "/reel/", "/p/",
-            "watch?v=", "youtu.be/", "/shorts/"
+            "watch?v=", "youtu.be/", "/shorts/",
+            "vt.tiktok.com", "/video/", "tiktok.com/@"
         ])
-        is_profile = not is_single
+        is_profile = not is_single and not ("vt.tiktok.com" in target_url or "/video/" in target_url)
 
         if not is_profile:
             # Mode Single Media (Video / Foto)
