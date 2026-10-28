@@ -288,6 +288,8 @@ def process_single_media(url: str, temp_dir: str) -> dict:
         if "instagram.com" in url and ("no video in this post" in err_msg.lower() or "/p/" in url):
             print("[*] Terdeteksi postingan foto Instagram, beralih ke photo extractor...")
             return extract_instagram_photo(url, temp_dir)
+        if "sign in to confirm you’re not a bot" in err_msg.lower() or "sign in to confirm you're not a bot" in err_msg.lower():
+            return {"error": "YouTube memblokir IP server cloud (Bot Check). Solusi: Ekspor cookie YouTube Anda via Cookie-Editor dan simpan di GitHub Secret sebagai YOUTUBE_COOKIES."}
         return {"error": err_msg or "Gagal membaca metadata media"}
 
     try:
