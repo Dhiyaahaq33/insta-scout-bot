@@ -53,6 +53,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           INSTAGRAM_COOKIES: ${{ secrets.INSTAGRAM_COOKIES }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
           python scout.py \
             --url "${{ github.event.inputs.target_url }}" \

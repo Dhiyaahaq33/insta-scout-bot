@@ -17,6 +17,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 DEFAULT_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 INSTAGRAM_COOKIES = os.getenv("INSTAGRAM_COOKIES", "")
+YOUTUBE_COOKIES = os.getenv("YOUTUBE_COOKIES", "")
 
 def send_telegram_message(chat_id: str, text: str) -> int:
     """Kirim pesan ke Telegram bot. Mengembalikan message_id jika berhasil."""
@@ -54,13 +55,22 @@ def send_progress(chat_id: str, text: str):
     if chat_id:
         send_telegram_message(chat_id, f"<i>{text}</i>")
 
-def get_ytdlp_cookie_arg(temp_dir: str):
-    """Menyiapkan file cookie jika tersedia di environment."""
-    if not INSTAGRAM_COOKIES:
+def get_ytdlp_cookie_arg(url: str, temp_dir: str):
+    """Menyiapkan file cookie sesuai platform jika tersedia di environment."""
+    raw_cookies = ""
+    if ("instagram.com" in url or "/p/" in url or "/reel/" in url) and INSTAGRAM_COOKIES:
+        raw_cookies = INSTAGRAM_COOKIES
+    elif ("youtube.com" in url or "youtu.be" in url) and YOUTUBE_COOKIES:
+        raw_cookies = YOUTUBE_COOKIES
+    elif INSTAGRAM_COOKIES:
+        raw_cookies = INSTAGRAM_COOKIES
+
+    if not raw_cookies:
         return []
+
     cookie_path = os.path.join(temp_dir, "cookies.txt")
     with open(cookie_path, "w", encoding="utf-8") as f:
-        f.write(INSTAGRAM_COOKIES)
+        f.write(raw_cookies)
     return ["--cookies", cookie_path]
 
 def get_youtube_extra_args(url: str):
@@ -258,7 +268,7 @@ def extract_instagram_photo(url: str, temp_dir: str) -> dict:
 
 def process_single_media(url: str, temp_dir: str) -> dict:
     """Mengunduh video atau foto, baik dari Instagram maupun YouTube."""
-    cookie_args = get_ytdlp_cookie_arg(temp_dir)
+    cookie_args = get_ytdlp_cookie_arg(url, temp_dir)
     yt_args = get_youtube_extra_args(url)
     out_template = os.path.join(temp_dir, "%(id)s.%(ext)s")
 
@@ -396,7 +406,7 @@ def main():
         else:
             # Mode Akun / Channel
             send_progress(chat_id, f"🔍 <b>[1/3]</b> Mengakses profil/channel: {target_url}...")
-            cookie_args = get_ytdlp_cookie_arg(temp_dir)
+            cookie_args = get_ytdlp_cookie_arg(url, temp_dir)
             yt_args = get_youtube_extra_args(target_url)
             list_cmd = [
                 sys.executable, "-m", "yt_dlp",
